@@ -1,6 +1,7 @@
 <?php
 
 namespace Database\Seeders;
+use App\Models\BranchRoleUser;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -12,6 +13,7 @@ class DatabaseSeeder extends Seeder
             ProvinceSeeder::class,
             BranchSeeder::class,
             RoleSeeder::class,
+            BranchRoleUserSeeder::class,
         ]);
 
     }

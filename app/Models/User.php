@@ -43,16 +43,25 @@ class User extends Authenticatable
         return $this->belongsToMany(Contact::class)
             ->withTimestamps();
     }
-    public function getAllRolesWithInstitutes()
+
+    public function getAllRolesWithBranches()
     {
-        return DB::table('institute_role_user')
-            ->join('roles', 'institute_role_user.role_id', '=', 'roles.id')
-            ->leftJoin('institutes', 'institute_role_user.institute_id', '=', 'institutes.id')
-            ->where('institute_role_user.user_id', $this->id)
+        return DB::table('branch_role_user')
+            ->join('roles', 'branch_role_user.role_id', '=', 'roles.id')
+            ->leftJoin('branches', 'branch_role_user.branch_id', '=', 'branches.id')
+            ->where('branch_role_user.user_id', $this->id)
             ->select(
-                'roles.id as role_id', 'roles.name_fa as role_name', 'institutes.id as institute_id', 'institutes.short_name as institute_name'
+                'roles.id as role_id', 'roles.name_fa as role_name', 'roles.is_global', 'branches.id as branch_id', 'branches.name as branch_name'
             )
+            ->orderByDesc('roles.is_global') // global role اولویت بالاتر
             ->get();
     }
+
+    public function roles():BelongsToMany
+    {
+        return $this->belongsToMany(Role::class)
+            ->withTimestamps();
+    }
+
 
 }

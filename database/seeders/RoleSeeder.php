@@ -15,7 +15,7 @@ class RoleSeeder extends Seeder
     {
         $roles = [
             ['name_en' => 'Newbie', 'name_fa' => 'تازه وارد', 'is_global' => true],
-            ['name_en' => 'SuperAdmin', 'name_fa' => 'سوپر ادمین', 'is_global' => true],
+            ['name_en' => 'SuperAdmin', 'name_fa' => 'سوپر ادمین', 'is_global' => true, 'is_system_role' => true],
             ['name_en' => 'Founder', 'name_fa' => 'موسس', 'is_global' => true],
             ['name_en' => 'Manager', 'name_fa' => 'مدیر'],
             ['name_en' => 'Assistant', 'name_fa' => 'مسئول اداری'],
