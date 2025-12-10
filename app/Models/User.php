@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
@@ -42,4 +43,16 @@ class User extends Authenticatable
         return $this->belongsToMany(Contact::class)
             ->withTimestamps();
     }
+    public function getAllRolesWithInstitutes()
+    {
+        return DB::table('institute_role_user')
+            ->join('roles', 'institute_role_user.role_id', '=', 'roles.id')
+            ->leftJoin('institutes', 'institute_role_user.institute_id', '=', 'institutes.id')
+            ->where('institute_role_user.user_id', $this->id)
+            ->select(
+                'roles.id as role_id', 'roles.name_fa as role_name', 'institutes.id as institute_id', 'institutes.short_name as institute_name'
+            )
+            ->get();
+    }
+
 }

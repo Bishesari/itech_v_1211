@@ -16,7 +16,7 @@ class UserSeeder extends Seeder
         DB::transaction(function () {
             $user = User::create([
                 'user_name' => 'test',
-                'password'  => bcrypt('test'),
+                'password'  => ('test'),
             ]);
 
             $user->profile()->create([

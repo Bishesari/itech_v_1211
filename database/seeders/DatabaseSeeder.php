@@ -9,6 +9,9 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             UserSeeder::class,
+            ProvinceSeeder::class,
+            BranchSeeder::class,
+            RoleSeeder::class,
         ]);
 
     }
