@@ -37,6 +37,9 @@
         <flux:button icon="cog-6-tooth" variant="subtle" class="max-lg:hidden cursor-pointer" />
         <flux:button icon="information-circle" variant="subtle" class="max-lg:hidden cursor-pointer" />
     </flux:navbar>
+
+
+    @auth()
     <flux:dropdown position="top" align="start">
         <flux:profile avatar="https://fluxui.dev/img/demo/user.png" />
         <flux:menu>
@@ -45,9 +48,32 @@
                 <flux:menu.radio>Truly Delta</flux:menu.radio>
             </flux:menu.radio.group>
             <flux:menu.separator />
-            <flux:menu.item icon="arrow-right-start-on-rectangle">Logout</flux:menu.item>
+            <form method="POST" action="{{ route('logout') }}" class="w-full">
+                @csrf
+                <flux:menu.item as="button" type="submit" icon="arrow-right-start-on-rectangle" class="w-full"
+                                data-test="logout-button">
+                    {{ __('خروج') }}
+                </flux:menu.item>
+            </form>
         </flux:menu>
     </flux:dropdown>
+    @endauth
+
+    @guest()
+        {{---------- Login Button ----------}}
+        <flux:modal.trigger name="login">
+            <flux:button variant="subtle" size="sm" class="cursor-pointer">
+                {{__('ورود')}}
+            </flux:button>
+        </flux:modal.trigger>
+
+        {{---------- Login Modal ----------}}
+        <flux:modal name="login" class="w-96" focusable :dismissible="false">
+            <livewire:auth.my-login context="modal"/>
+        </flux:modal>
+    @endguest
+
+
 </flux:header>
 <flux:sidebar sticky collapsible="mobile" class="lg:hidden bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-700">
     <flux:sidebar.header>
@@ -89,5 +115,10 @@
 </flux:main>
 
 @fluxScripts
+<script>
+    document.addEventListener('reloadPage', () => {
+        location.reload();
+    });
+</script>
 </body>
 </html>

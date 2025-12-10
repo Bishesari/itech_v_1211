@@ -11,7 +11,7 @@ class BranchSeeder extends Seeder
     public function run(): void
     {
         Branch::create([
-            'name' => 'شعبه مرکزی بوشهر',
+            'name' => 'مرکزی بوشهر',
             'code' => 'BUS-001',
             'province_id' => 1,
             'city_id' => 1,

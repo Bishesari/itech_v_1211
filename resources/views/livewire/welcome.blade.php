@@ -29,8 +29,8 @@ class extends Component {
     </x-slot:tw_description>
 
     {{-------------  Page Content ---------------}}
-    <flux:heading size="xl" level="1">{{__('آموزشگاه کامپیوتر، حسابداری و عکاسی در بوشهر')}}</flux:heading>
-    <flux:text class="mt-2 mb-6 text-base text-justify">
+    <flux:heading size="xl" level="1">{{__('آموزشگاه کامپیوتر، حسابداری و عکاسی بوشهر')}}</flux:heading>
+    <flux:text class="mt-2 mb-6 text-base text-justify leading-8">
         {{__('آموزشگاه آی‌تک در بوشهر برگزارکننده دوره‌های مهارتی کامپیوتر، برنامه‌نویسی، حسابداری، معماری و عکاسی است.
 تمامی دوره‌ها به‌صورت حضوری، پروژه‌محور و متناسب با نیاز بازار کار برگزار می‌شوند.
 هدف ما آموزش مهارت‌هایی است که واقعاً منجر به اشتغال و پیشرفت شغلی شوند.')}}

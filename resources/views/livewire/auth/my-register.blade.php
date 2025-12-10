@@ -3,7 +3,6 @@
 use App\Jobs\OtpSend;
 use App\Jobs\SmsPass;
 use App\Models\Contact;
-use App\Models\InstituteRoleUser;
 use App\Models\OtpLog;
 use App\Models\User;
 use App\Rules\NCode;
