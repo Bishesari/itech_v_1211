@@ -3,15 +3,15 @@
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
-use Livewire\Attributes\On;
 use Livewire\Volt\Component;
 
 new class extends Component {
+
+    public string $context = 'modal'; // modal | page
+
     public string $user_name = '';
     public string $password = '';
     public bool $remember = false;
-
-    public string $context = 'modal'; // modal | page
 
     public function mount(string $context = 'modal'): void
     {
@@ -62,7 +62,7 @@ new class extends Component {
                    :description="__('نام کاربری (کدملی) و پسورد قبلا پیامک شده است.')"/>
     <!-- Session Status -->
     <x-auth-session-status class="text-center" :status="session('status')"/>
-    <form wire:submit.prevent="login" class="space-y-4 flex flex-col gap-6" autocomplete="off">
+    <form wire:submit.prevent="login" class="space-y-4 flex flex-col gap-4" autocomplete="off">
         <x-my.flt_lbl name="user_name" label="{{__('نام کاربری:')}}" dir="ltr" maxlength="25"
                       class="tracking-wider font-semibold" autofocus required/>
 
@@ -75,8 +75,9 @@ new class extends Component {
                 <flux:checkbox wire:model="remember" class="cursor-pointer"/>
                 <flux:label class="cursor-pointer">{{__('بخاطرسپاری')}}</flux:label>
             </flux:field>
-
-
+            <flux:link class="text-sm" :href="route('forgotten.password')" wire:navigate tabindex="-1">
+                {{ __('ریست کلمه عبور') }}
+            </flux:link>
         </div>
 
         <div class="flex items-center justify-end">
@@ -86,10 +87,23 @@ new class extends Component {
             </flux:button>
         </div>
     </form>
-    @if (Route::has('registration'))
+
+    @if($context === 'modal')
         <div class="space-x-1 text-sm text-center rtl:space-x-reverse text-zinc-600 dark:text-zinc-400">
             <span>{{ __('حساب کاربری ندارید؟') }}</span>
-            <flux:link :href="route('registration')" wire:navigate>{{ __('ثبت نام کنید.') }}</flux:link>
+            <flux:modal.trigger name="register">
+                <flux:button variant="ghost" icon:trailing="arrow-up-left"
+                             x-on:click="$flux.modal('login').close()" size="sm"
+                             class="cursor-pointer">{{ __('ثبت نام کنید.') }}</flux:button>
+            </flux:modal.trigger>
+        </div>
+    @else
+        <div class="space-x-1 text-sm text-center rtl:space-x-reverse text-zinc-600 dark:text-zinc-400">
+            <span>{{ __('حساب کاربری ندارید؟') }}</span>
+            <flux:button :href="route('register')" wire:navigate variant="ghost" icon:trailing="arrow-up-left" size="sm"
+                         class="cursor-pointer">{{ __('ثبت نام کنید.') }}
+            </flux:button>
         </div>
     @endif
+
 </div>

@@ -5,15 +5,17 @@ use App\Jobs\SmsPass;
 use App\Models\BranchRoleUser;
 use App\Models\Contact;
 use App\Models\OtpLog;
+use App\Models\Profile;
 use App\Models\User;
 use App\Rules\NCode;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
-new class extends Component
-{
+new #[Layout('components.layouts.auth')]
+class extends Component {
     // === Configuration ===
     private const OTP_RESEND_DELAY = 120;         // seconds until next allowed send
     private const OTP_TTL = 300;                  // seconds OTP is valid (e.g., 5 minutes)
@@ -22,9 +24,10 @@ new class extends Component
     private const OTP_TABLE = 'otp_logs';
 
     // === Public properties (bound to UI) ===
-    public string $context = 'modal'; // modal | page
+    public int $step = 1;
     public string $n_code = '';
     public string $mobile_nu = '';
+    public array $mobiles = [];
     public string $u_otp = '';
     public int $timer = 0; // front-end countdown
     public string $otp_log_check_err = '';
@@ -32,24 +35,37 @@ new class extends Component
     protected function rules(): array
     {
         return [
-            'n_code' => ['required', 'digits:10', new NCode, 'unique:profiles'],
-            'mobile_nu' => ['required', 'starts_with:09', 'digits:11'],
+            'n_code' => ['required'],
+            'mobile_nu' => ['required']
         ];
     }
 
     // -------------------------
-    // Step 1: show modal (no error shown here)
+    // Step 1:
     // -------------------------
-    public function check_inputs(): void
+
+    public function check_n_code(): void
     {
-        $this->validate();
-
-        // Read current timer state for this n_code (do not show error to the user yet)
-        $this->log_check(showError: false);
-
+        $this->validateOnly('n_code');
+        $profile = Profile::where('n_code', $this->n_code)->first();
+        if (!$profile) {
+            $this->addError('n_code', 'کد ملی یافت نشد.');
+            return;
+        }
+        $user = $profile->user;
+        $this->mobiles = $user->contacts->pluck('mobile_nu')->toArray();
+        if (empty($this->mobiles)) {
+            $this->addError('n_code', 'هیچ شماره موبایلی برای این کد ملی ثبت نشده است.');
+            return;
+        }
+        if (count($this->mobiles) == 1) {
+            $this->mobile_nu = $this->mobiles[0];
+        }
+        $this->log_check();
         $this->u_otp = '';
-        $this->modal('otp_verify')->show();
+        $this->step = 2;
     }
+
 
     // -------------------------
     // Step 2: send otp (rate-limited)
@@ -60,7 +76,7 @@ new class extends Component
         $this->validate();
 
         // If rate limits / timers fail, show errors
-        if (! $this->log_check(showError: true)) {
+        if (!$this->log_check(showError: true)) {
             return;
         }
 
@@ -131,7 +147,7 @@ new class extends Component
         // If we have a last record, check resend window and per-n-code limit
         if ($latest) {
             // If resend wait still active => block and set timer
-            if (! empty($latest->otp_next_try_time) && $latest->otp_next_try_time > time()) {
+            if (!empty($latest->otp_next_try_time) && $latest->otp_next_try_time > time()) {
                 $this->timer = $latest->otp_next_try_time - time();
                 $this->dispatch('set_timer');
 
@@ -154,7 +170,7 @@ new class extends Component
         }
 
         // if no latest record (first send for this n_code in 24h), check ip uniqueness limit
-        if ((int) $uniqueNcodesForIp >= self::MAX_UNIQUE_N_CODES_PER_IP_PER_DAY) {
+        if ((int)$uniqueNcodesForIp >= self::MAX_UNIQUE_N_CODES_PER_IP_PER_DAY) {
             if ($showError) {
                 $this->otp_log_check_err = 'این IP در ۲۴ ساعت گذشته بیش از حد مجاز ثبت‌نام انجام داده است.';
             }
@@ -178,7 +194,7 @@ new class extends Component
             ->latest('id')
             ->first();
 
-        if (! $latest) {
+        if (!$latest) {
             $this->otp_log_check_err = 'هنوز کدی ارسال نشده است.';
             return;
         }
@@ -203,26 +219,19 @@ new class extends Component
             return;
         }
 
-        if (! hash_equals((string)$storedOtp, (string)$this->u_otp)) {
+        if (!hash_equals((string)$storedOtp, (string)$this->u_otp)) {
             $this->otp_log_check_err = 'کد پیامکی اشتباه است.';
             return;
         }
 
-        // success: create user inside transaction
+        // success: reset user password
         DB::transaction(function () use ($latest) {
 
-            $tempPass = $this->n_code;
+            $tempPass =simple_pass(6);
 
-            $user = User::create([
-                'user_name' => $this->n_code,
-                'password' => $tempPass,
-            ]);
-
-            BranchRoleUser::create([
-                'user_id' => $user->id,
-                'role_id' => 1,
-                'assigned_by' => $user->id,
-            ]);
+            $user = Profile::where('n_code', $this->n_code)->first()->user;
+            $user->password = $tempPass;
+            $user->save();
 
             // remove OTP logs for this n_code + mobile
             DB::table(self::OTP_TABLE)
@@ -230,93 +239,73 @@ new class extends Component
                 ->where('mobile_nu', $this->mobile_nu)
                 ->delete();
 
-            // contact - search by mobile only, set verified flag if new
-            $contact = Contact::firstOrCreate(
-                ['mobile_nu' => $this->mobile_nu],
-                ['verified' => 1]
-            );
-
-            // create profile
-            $user->profile()->create([
-                'identifier_type' => 'national_id',
-                'n_code' => $this->n_code,
-            ]);
-
-            $user->contacts()->syncWithoutDetaching([$contact->id]);
-
             // send the temporary password via SmsPass job
-            SmsPass::dispatch($this->mobile_nu, $this->n_code, $tempPass);
-
-            event(new Registered($user));
-            Auth::login($user);
-
-            session()->regenerate();
-            session([
-                'active_role_id' => 1,
-                'active_branch_id' => null,
-            ]);
+            SmsPass::dispatch($this->mobile_nu, $user->user_name, $tempPass);
         });
 
         // stop client timer and redirect or reload
         $this->dispatch('stop_timer');
-
-        if ($this->context === 'modal') {
-            $this->dispatch('reloadPage');
-        } else {
-            $this->redirect('home');
-        }
+        $this->redirect(route('login', absolute: false));
     }
 
     public function reset_all(): void
     {
-        $this->reset();
+        $this->reset([
+            'n_code',
+            'mobile_nu',
+            'mobiles',
+            'u_otp',
+            'step',
+            'timer',
+            'otp_log_check_err'
+        ]);
+
         $this->resetErrorBag();
-        $this->otp_log_check_err = '';
-        $this->timer = 0;
+        $this->step = 1; // بازگشت به مرحله اول
         $this->dispatch('stop_timer');
     }
 };
 ?>
 
 
-<div class="flex flex-col gap-6">
-    <x-auth-header :title="__('ایجاد حساب کاربری')" :description="__('جهت ایجاد حساب، اطلاعات را وارد نمایید.')"/>
+<div class="flex flex-col gap-4">
     <x-auth-session-status class="text-center" :status="session('status')"/>
-    <form wire:submit.prevent="check_inputs" class="space-y-4 flex flex-col gap-4" autocomplete="off">
-        <x-my.flt_lbl name="n_code" label="{{__('کدملی:')}}" dir="ltr" maxlength="10"
-                      class="tracking-wider font-semibold" autofocus required/>
-        <x-my.flt_lbl name="mobile_nu" label="{{__('شماره موبایل:')}}" dir="ltr" maxlength="11"
-                      class="tracking-wider font-semibold" required/>
-        <flux:button type="submit" variant="primary" color="teal" class="w-full cursor-pointer">
-            {{ __('ادامه ثبت نام') }}
-        </flux:button>
-    </form>
-
-    @if($context === 'modal')
-        <div class="space-x-1 text-sm text-center rtl:space-x-reverse text-zinc-600 dark:text-zinc-400">
-            <span>{{ __('حساب کاربری داشته اید؟') }}</span>
-            <flux:modal.trigger name="login">
-                <flux:button variant="ghost" icon:trailing="arrow-down-left"
-                             x-on:click="$flux.modal('register').close()" size="sm"
-                             class="cursor-pointer">{{ __('وارد شوید.') }}</flux:button>
-            </flux:modal.trigger>
-        </div>
-    @else
-        <div class="space-x-1 text-sm text-center rtl:space-x-reverse text-zinc-600 dark:text-zinc-400">
-            <span>{{ __('حساب کاربری داشته اید؟') }}</span>
-            <flux:button :href="route('login')" wire:navigate variant="ghost" icon:trailing="arrow-down-left" size="sm"
-                         class="cursor-pointer">{{ __('وارد شوید.') }}
+    @if($step === 1)
+        <x-auth-header :title="__('بازگردانی کلمه عبور')" :description="__('مرحله اول: دریافت کد ملی')"/>
+        <form wire:submit.prevent="check_n_code" class="space-y-4 flex flex-col gap-4" autocomplete="off">
+            <x-my.flt_lbl name="n_code" label="{{__('کدملی:')}}" dir="ltr" maxlength="10"
+                          class="tracking-wider font-semibold" autofocus required/>
+            <flux:button type="submit" variant="primary" color="teal" class="w-full cursor-pointer">
+                {{ __('ادامه') }}
             </flux:button>
+        </form>
+
+        <div class="space-x-1 rtl:space-x-reverse text-center text-sm text-zinc-400">
+            <span>{{ __('یا بازگردید به ') }}</span>
+            <flux:link :href="route('login')" wire:navigate>{{ __('صفحه ورود') }}</flux:link>
         </div>
     @endif
 
 
-    {{-------------------------- OTP VERIFY Modal --------------------------}}
-    <flux:modal name="otp_verify" class="md:w-96" :dismissible="false">
+    {{-------------------------- OTP VERIFY --------------------------}}
+    @if($step === 2)
+        <x-auth-header color="text-yellow-600" :title="__('بازگردانی کلمه عبور')" :description="__('مرحله دوم: انتخاب شماره موبایل و ارسال otp')"/>
+        <flux:text class="text-center">{{__('نام کاربری و کلمه عبور جدید پیامک خواهد شد.')}}</flux:text>
+
         <form wire:submit.prevent="otp_verify" class="space-y-8">
-            <div class="max-w-72 mx-auto space-y-2">
-                <flux:heading size="lg" class="text-center">{{__('تایید کد پیامکی')}}</flux:heading>
-                <flux:text class="text-center">{{__('دکمه ارسال را کلیک نموده و کد دریافتی را وارد کنید.')}}</flux:text>
+            <!-- National Code and Mobile -->
+            <div class="grid grid-cols-2 gap-4">
+                <flux:text class="mt-2 text-center">{{__('کدملی: ')}}{{$n_code}}</flux:text>
+                @if(count($mobiles) > 1)
+                    <flux:select wire:model="mobile_nu" variant="listbox" placeholder="انتخاب موبایل">
+                        @foreach($mobiles as $mobile)
+                            <flux:select.option value="{{$mobile}}"
+                                                style="text-align: center">{{mask_mobile($mobile)}}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                @else
+                    <flux:text class="mt-2 text-center">{{__('موبایل: ')}}{{mask_mobile($mobile_nu)}}</flux:text>
+                @endif
             </div>
 
             <flux:otp wire:model="u_otp" submit="auto" length="6" label="OTP Code" label:sr-only :error:icon="false"
@@ -337,7 +326,7 @@ new class extends Component
                 @endif
             </div>
         </form>
-    </flux:modal>
+    @endif
 
     @script
     <script>

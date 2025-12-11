@@ -16,8 +16,9 @@ return new class extends Migration
             $table->string('ip', 45)->index();
             $table->string('n_code', 10)->index();
             $table->string('mobile_nu', 11)->index();
-            $table->string('otp', 6)->nullable();
+            $table->string('otp')->nullable();
             $table->unsignedInteger('otp_next_try_time')->default(0);
+            $table->timestamp('otp_expires_at')->nullable();
             $table->timestamps();
         });
     }

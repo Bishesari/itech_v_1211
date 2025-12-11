@@ -71,6 +71,20 @@
         <flux:modal name="login" class="w-96" focusable :dismissible="false">
             <livewire:auth.my-login context="modal"/>
         </flux:modal>
+
+        {{---------- Register Button ----------}}
+        <flux:modal.trigger name="register">
+            <flux:button variant="subtle" size="sm" class="cursor-pointer">
+                {{__('ثبت نام')}}
+            </flux:button>
+        </flux:modal.trigger>
+
+        {{---------- Register Modal ----------}}
+        <flux:modal name="register" class="w-96" focusable :dismissible="false" flyout>
+            <livewire:auth.my-register context="modal"/>
+        </flux:modal>
+
+
     @endguest
 
 
