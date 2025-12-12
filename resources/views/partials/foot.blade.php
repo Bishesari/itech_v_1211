@@ -4,7 +4,7 @@
     <flux:separator/>
     <flux:text class="text-center pt-2">
         <span class="font-semibold">&copy;</span>
-        {{__('تمامی حقوق محفوظ است.')}}
+        {{__('تمامی حقوق برای آموزشگاه آی تک محفوظ است.')}}
         {{__('از 1388 تا')}}
         {{jdate('Y', time(), '', '', 'en')}}
     </flux:text>
