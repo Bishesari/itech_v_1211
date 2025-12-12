@@ -128,6 +128,8 @@
     {{$slot}}
 </flux:main>
 
+@include('partials.foot')
+
 @fluxScripts
 <script>
     document.addEventListener('reloadPage', () => {
