@@ -37,6 +37,4 @@ class extends Component {
     </flux:text>
     <flux:separator variant="subtle" />
 
-
-
 </div>
